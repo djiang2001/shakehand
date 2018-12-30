@@ -11,31 +11,30 @@
   returns the file descriptor for the upstream pipe.
   =========================*/
 int server_handshake(int *to_client) {
-  char pp[HANDSHAKE_BUFFER_SIZE];
-  char client_return[HANDSHAKE_BUFFER_SIZE];
+  char ups[HANDSHAKE_BUFFER_SIZE];
+  char msg[BUFFER_SIZE];
+    
   printf("Server created wkp\n");
-  mkfifo("wkp",0666);
+  mkfifo("wkp", 0666);
 
-  printf("Server is waiting for client\n");
-  int clientu = open ("wkp", O_RDONLY);
-  printf("Server is connected to client upstream\n");
+  printf("Server waiting for client\n");
+
+  int wkp = open("wkp", O_RDONLY);
+  read(wkp,ups, HANDSHAKE_BUFFER_SIZE);
+  printf("Message from client: %s\n", ups);
   
-  read(clientu,pp, sizeof(pp));
-  printf("Server has received signal\n");
-
-  int clientd = open(pp,O_WRONLY);
-  printf("Downstream pipe created\n");
-
+  printf("Server removed\n");
   remove("wkp");
-  printf("Wkp is removed\n");
 
-  printf("Sending signal to client\n");
-  write(clientd,ACK,sizeof(ACK));
-  printf("Awaiting client response\n");
-  read(clientu,client_return,sizeof(client_return));
-  printf("Client validation message received\n");
+  printf("Server asking for validation\n ");
+  *to_client = open("pp", O_WRONLY);
+  write(*to_client, ACK, sizeof(ACK));
 
-  return clientu;
+  printf("Server received validation\n");
+
+  read(wkp, msg, BUFFER_SIZE);
+  
+  return wkp;
 }
 
 
@@ -49,31 +48,28 @@ int server_handshake(int *to_client) {
   returns the file descriptor for the downstream pipe.
   =========================*/
 int client_handshake(int *to_server) {
-   char pp[HANDSHAKE_BUFFER_SIZE];
-  char signal[HANDSHAKE_BUFFER_SIZE];
-  
+  char ups[HANDSHAKE_BUFFER_SIZE];
+    
   printf("Client created private pipe\n");
-  mkfifo(pp, 0666);
+  mkfifo("pp", 0666);
 
-  int serveru = open("wkp", O_WRONLY);
-  printf("Client connected to server upstream\n");
-
-  write(serveru,pp,sizeof(pp));
-  printf("Client signal sent\n");
-
-  int serverd = open(pp,O_RDONLY);
-  printf("Client connected to server downstream\n");
-
-  read(serverd,signal, sizeof(signal));
-  printf("Received signal from server\n");
-
-  remove(pp);
-  printf("Private pipe removed\n");
-
-  write(serveru,ACK,sizeof(ACK));
-  printf("Client validation message sent\n");
-
-  *to_server = serveru;
+  printf("Client connected to server\n");
+  *to_server = open("wkp", O_WRONLY);
   
-  return serverd;
+  printf("Client sent private pipe message\n");
+  write(*to_server, "pp", 6);
+
+  printf("Client confirmed server response\n");
+
+  int pp = open("pp", O_RDONLY);
+  read(pp, ups, HANDSHAKE_BUFFER_SIZE);
+  printf("Message from server: %s\n", ups);
+
+  remove("pp");
+  printf("Client removed private pipe\n");
+  
+  printf("Client sending validation\n");
+  write(*to_server, ACK, sizeof(ACK));
+  
+  return pp;
 }
